@@ -4,6 +4,8 @@
 
 ESPHome-HUB75-Energy-v2 ist ein hochperformantes Energie-Dashboard für 64x32 RGB-LED-Matrizen. Es basiert auf ESPHome und visualisiert Live-Daten deiner Photovoltaik-Anlage (SMA), deines Speichers (BYD) und deines Hausverbrauchs direkt aus Home Assistant.
 
+![Projektansicht](ESPHome-HUB75-Energy-v2.jpg)
+
 ## 🚀 Die Evolution
 Dieses Projekt ist die konsequente Weiterentwicklung der ursprünglichen C++ Version. Durch den Wechsel auf **ESPHome** bietet Version 2:
 * **Native Home Assistant Integration:** Direkte Kommunikation über die API.
