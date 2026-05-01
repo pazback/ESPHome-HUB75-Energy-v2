@@ -1,0 +1,14 @@
+# ESPHome temporäre Dateien und Build-Artefakte
+.esphome/
+
+# Python-spezifische Dateien
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Betriebssystem-spezifische Dateien
+.DS_Store
+Thumbs.db
+
+# Falls du mit Secrets arbeitest (empfohlen!)
+secrets.yaml
