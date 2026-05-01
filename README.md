@@ -21,16 +21,22 @@ Die Anzeige ist auf maximale Klarheit optimiert. Alle Werte sind rechtsbündig a
 | **Speicher (SOC)** | BYD-Block mit Balkenanzeige | Ampel-Logik |
 | **Uhrzeit** | Große zentrierte Zeitanzeige | Amber |
 
-## 🛠 Technische Details
-### Nacht-Modus & Farbwahl
-Um das typische "Ausbluten" (Blooming) von LED-Matrizen bei Nacht zu verhindern, nutzt dieses Projekt **Amber** (Bernstein) für die Uhr und ein gedimmtes **Grau** (60%) für statische Rahmen. Die Symbole wurden pixelgenau auf die Höhe der Text-Baselines optimiert.
+## 🎨 Dynamische Farblogik
+Um den Energiestatus intuitiv erfassbar zu machen, nutzt das Display eine automatisierte Farbanpassung basierend auf den Sensorwerten:
 
-## 📝 Einrichtung
-1. Erstelle ein neues ESPHome-Device in deinem Dashboard.
-2. Definiere die Farben in deiner YAML (Nutze die im Projekt hinterlegten Farbcodes).
-3. Verknüpfe die Sensoren `pv_power`, `grid_power`, `house_power` und `soc` aus deiner Home Assistant Instanz.
-4. Nutze das im Repo hinterlegte Lambda für die Display-Ausgabe.
-5. Achte darauf, dass die IDs der Sensoren im Code exakt mit denen in deiner Konfiguration übereinstimmen.
+* **Netz-Status (Grid Power):** * **Rot:** Bei Netzbezug (Wert > 0W).
+    * **Grün:** Bei Netzeinspeisung (Wert < 0W).
+* **Batterie-Speicher (SOC):** * **Rot:** < 20% (Warnzustand).
+    * **Gelb:** 20% - 49%.
+    * **Grün:** >= 50%.
+* **Nacht-Optimierung (Amber-Modus):** Die Uhrzeit wird permanent in **Amber (Bernstein)** dargestellt, um "Blooming" (Überstrahlen) zu verhindern und die Nachtruhe nicht zu stören.
+
+## 🛠 Startet euer eigenes Projekt
+
+1. **Software:** Erstellt euch ein neues Projekt in ESPHome, kopiert den Code aus der `led-matrix.yaml` hinein und passt die Entity-IDs euren Sensoren aus Home Assistant an.
+2. **Hardware:** Die korrekte Verdrahtung zwischen ESP32 und der Matrix entnehmt ihr einfach dem Vorgänger-Projekt: [ESP32-HUB75-Display Verdrahtung](https://github.com/pazback/ESP32-HUB75-Display).
+3. **Gehäuse:** Ein 3D-Druck Gehäuse wie dieses von [Thingiverse (5793070)](https://www.thingiverse.com/thing:5793070) passt perfekt für die 64x32er Panels.
+4. **Finish:** Zum Abschluss empfiehlt es sich, eine **schwarz getönte Acrylplatte (ca. 26x13cm)** vor die Matrix zu setzen. Das macht das Licht deutlich weicher, erhöht den Kontrast und sorgt für einen professionellen Look.
 
 ## 📜 Lizenz
 
