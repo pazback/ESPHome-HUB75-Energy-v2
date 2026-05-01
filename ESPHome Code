@@ -1,0 +1,186 @@
+esphome:
+  name: led-matrix
+  friendly_name: "Pixeldisplay PV"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: "DEIN_WLAN_NAME"
+  password: "DEIN_WLAN_PASSWORT"
+  fast_connect: true # Beschleunigt die Verbindung nach einem Reboot
+
+logger:
+  level: NONE # Deaktiviert, um die Performance der HUB75-Ansteuerung nicht zu stören
+
+api:
+  reboot_timeout: 0s # Verhindert ungewollte Reboots bei kurzen API-Ausfällen
+
+ota:
+  - platform: esphome
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+font:
+  - file: "gfonts://Silkscreen"
+    id: font_small
+    size: 8
+  - file: "gfonts://Roboto"
+    id: font_large
+    size: 12 # Größere Schrift für die Uhrzeit (Zentrum des Displays)
+
+number:
+  - platform: template
+    name: "Matrix Helligkeit"
+    id: matrix_brightness
+    min_value: 0
+    max_value: 100
+    step: 1
+    initial_value: 16
+    unit_of_measurement: "%"
+    optimistic: true
+    on_value:
+      then:
+        # Rechnet Prozentwerte (0-100) in den Hardware-Bereich (0-255) um
+        - lambda: 'id(matrix).set_brightness(int(x * 2.55));'
+
+sensor:
+  # Datenquellen aus Home Assistant
+  - platform: homeassistant
+    id: pv_power
+    entity_id: sensor.DEINE_PV_ENTITAET
+  - platform: homeassistant
+    id: soc
+    entity_id: sensor.DEINE_BATTERIE_ENTITAET
+  - platform: homeassistant
+    id: grid_power
+    entity_id: sensor.DEINE_NETZ_ENTITAET
+  - platform: homeassistant
+    id: house_power
+    entity_id: sensor.DEINE_VERBRAUCHS_ENTITAET
+
+color:
+  - id: my_red
+    red: 100%
+    green: 0%
+    blue: 0%
+  - id: my_green
+    red: 0%
+    green: 100%
+    blue: 0%
+  - id: my_yellow
+    red: 100%
+    green: 80%
+    blue: 0%
+  # Amber: Speziell für Nachtsicht optimiert (weniger blendend, sehr scharf)
+  - id: my_amber
+    red: 100%
+    green: 60%
+    blue: 0%
+  - id: my_cyan
+    red: 0%
+    green: 70%
+    blue: 100%
+  # Grau statt Reinweiß reduziert das "Blooming" (Überstrahlen) der LEDs
+  - id: my_gray
+    red: 60%
+    green: 60%
+    blue: 65%
+  - id: my_black
+    red: 0%
+    green: 0%
+    blue: 0%
+
+display:
+  - platform: hub75
+    id: matrix
+    panel_width: 64
+    panel_height: 32
+    bit_depth: 4 
+    # Pin-Belegung für Standard-ESP32 HUB75 Shields
+    r1_pin: 25
+    g1_pin: 26
+    b1_pin: 27
+    r2_pin: 14
+    g2_pin: 12
+    b2_pin: 13
+    a_pin: 23
+    b_pin: 19
+    c_pin: 5
+    d_pin: 17
+    e_pin: 32
+    clk_pin: 16
+    lat_pin: 4
+    oe_pin: 15
+    brightness: 40
+    update_interval: 16ms
+    
+    lambda: |-
+      it.fill(id(my_black));
+
+      // --- 1. PV-ERZEUGUNG ---
+      // Custom Icon: 5-zeiliges diagonales Band (Energiefluss-Symbolik)
+      it.line(4, 1, 8, 1, id(my_yellow)); 
+      it.line(3, 2, 7, 2, id(my_yellow)); 
+      it.line(2, 3, 6, 3, id(my_yellow)); 
+      it.line(1, 4, 5, 4, id(my_yellow)); 
+      it.line(0, 5, 4, 5, id(my_yellow)); 
+      
+      if (!isnan(id(pv_power).state)) {
+        // Rechtsbündige Ausrichtung der Werte auf X=42 für saubere Optik
+        it.printf(42, 6, id(font_small), id(my_yellow), TextAlign::BASELINE_RIGHT, "%.0fW", id(pv_power).state);
+      }
+
+      // --- 2. NETZ-STATUS (GRID) ---
+      float g_val = id(grid_power).state;
+      // Dynamische Farbe: Rot bei Netzbezug (>0), Grün bei Einspeisung (<0)
+      auto g_col = (g_val > 0) ? id(my_red) : id(my_green);
+      // Blitz-Icon linksbündig
+      it.line(3, 8, 1, 10, g_col); 
+      it.line(1, 10, 3, 10, g_col); 
+      it.line(3, 10, 1, 12, g_col); 
+
+      if (!isnan(id(grid_power).state)) {
+        it.printf(42, 13, id(font_small), g_col, TextAlign::BASELINE_RIGHT, "%.0fW", std::abs(g_val));
+      }
+
+      // --- 3. HAUSVERBRAUCH ---
+      // Herz-Icon (Der Puls des Hauses) in Cyan
+      it.draw_pixel_at(1, 15, id(my_cyan)); it.draw_pixel_at(3, 15, id(my_cyan));
+      it.line(0, 16, 4, 16, id(my_cyan));
+      it.line(1, 17, 3, 17, id(my_cyan));
+      it.draw_pixel_at(2, 18, id(my_cyan));
+      
+      if (!isnan(id(house_power).state)) {
+        it.printf(42, 20, id(font_small), id(my_cyan), TextAlign::BASELINE_RIGHT, "%.0fW", id(house_power).state);
+      }
+
+      // --- 4. BATTERIE-VISUALISIERUNG (BYD LOGIK) ---
+      if (!isnan(id(soc).state)) {
+        int soc_val = (int) id(soc).state;
+        // Ampel-System: Rot < 20%, Gelb < 50%, sonst Grün
+        Color b_col = (soc_val < 20) ? id(my_red) : (soc_val < 50) ? id(my_yellow) : id(my_green);
+
+        // Gehäuse der Batterie (Grau zur Reduzierung von Blendeffekten)
+        it.rectangle(46, 3, 16, 10, id(my_gray)); 
+        it.line(62, 6, 62, 9, id(my_gray)); // Batterie-Pluspol vorne
+        
+        // Füllstandsbalken (14 Pixel max Breite innerhalb des Rahmens)
+        int fill = (soc_val * 14) / 100;
+        it.filled_rectangle(47, 4, fill, 8, b_col);
+
+        // Prozentanzeige unter/neben der Batterie
+        it.printf(45, 11, id(font_small), b_col, "%d", soc_val);
+        it.print(45 + ((soc_val >= 100) ? 18 : (soc_val >= 10) ? 12 : 6), 11, id(font_small), id(my_gray), "%");
+      }
+
+      // --- 5. UHRZEIT ---
+      auto t = id(ha_time).now();
+      if (t.is_valid()) {
+        // Zentriert am unteren Rand des Displays in Amber
+        it.printf(32, 31, id(font_large), id(my_amber), TextAlign::BASELINE_CENTER, "%02d:%02d", t.hour, t.minute);
+      }
